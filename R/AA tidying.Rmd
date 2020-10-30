@@ -4,3 +4,25 @@ output: html_document
 ---
 
 
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readr)
+library(janitor)
+```
+
+```{r, warning=FALSE, message=FALSE}
+AA_data <- read_csv("~/Chem 313 lab/ICMPS lab/Soil_data/AA_Data.csv", skip = 4, na="N/A")
+
+AA_data<- AA_data%>%
+  rename(Sample.Key ="Sample Key")
+
+sample_key <- read.csv("~/Chem 313 lab/ICMPS lab/Soil_data/Sample_Key.csv", skip = 0)
+```
+
+merge the two to start so we know what is a standard
+```{r warning=FALSE}
+AA_merged<- merge(AA_data, sample_key)
+
+
+
+```
