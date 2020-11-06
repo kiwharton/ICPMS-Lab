@@ -1,11 +1,39 @@
 ---
-title: "AA analysis"
+title: "ICPMS analysis"
 output: html_document
 ---
 
-```{r}
+```{r include=FALSE}
 library(tidyverse)
 library(readr)
 library(janitor)
 
 ```
+
+#load data
+```{r}
+icpms<-read.csv("~/Chem 313 lab/ICMPS lab/Soil_data/ICPMS_tidy.csv")
+icpms
+```
+
+```{r}
+sample_sites <- unique(filter(icpms, Site!="MB",  Site!= "")$site)
+#exlcuding method blancks and others
+metals_analyzed <- unique(icpms$metal)
+
+#preview
+sample_sites
+metals_analyzed
+
+```
+
+```{r}
+icpms_cal<- NULL
+for (unique_metal in metals_analyzed) {
+  cal<- icpms%>%
+    filter(Type== "Cal1" |Type == "Cal2" | Type== "Cal3")%>%
+    filter(metal== unique_metal)%>%
+    select(Concentration, CPS, RSD)
+}
+```
+

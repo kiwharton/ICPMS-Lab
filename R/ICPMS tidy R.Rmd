@@ -58,8 +58,8 @@ icpms_tidy<- icpms_data%>%
 ```{r, warning=FALSE, message=FALSE}
 icpms_merged<- merge(icpms_tidy, sample_key)
 
-icpms_merged
 
+write.csv(icpms_merged, file = "~/Chem 313 lab/ICMPS lab/Soil_data/ICPMS_tidy.csv")
 ```
 
 
