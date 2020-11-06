@@ -1,0 +1,63 @@
+---
+title: "blanks"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+```
+
+```{r}
+list <- c(1,3,4,2,5)
+for (i in list) {
+  print(i)
+  
+}
+```
+
+```{r}
+list <- c(1,3,4,2,5)
+new_list<- NULL
+
+for (i in list) {
+  new_list<- c(new_list, i)
+  print(new_list)
+  
+}
+```
+
+```{r}
+list <- c(1,3,4,2,5)
+new_list<- NULL
+
+for (i in list) {
+  new_list<- c(new_list, i)
+  print(c("i is equal to", i))
+  print(new_list)
+  
+  
+}
+```
+
+```{r}
+list <- c(1,3,4,2,5)
+second_list<-  c("a", "b", "c", "d")
+
+for (i in list) {
+  print(c("i is equal to", i))
+  new_list<- c(new_list, i)
+  for (new_variable in second_list) {
+    
+   
+  print(c("new_variable is equal to", new_variable))
+}
+}
+```
+
+
+```{r}
+
+
+```
+
+

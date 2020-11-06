@@ -23,6 +23,6 @@ merge the two to start so we know what is a standard
 ```{r warning=FALSE}
 AA_merged<- merge(AA_data, sample_key)
 
-
+write.csv(AA_merged, file = "~/Chem 313 lab/ICMPS lab/Soil_data/AA_Data.csv")
 
 ```
