@@ -1,0 +1,206 @@
+---
+title: "ICPMS analysis"
+output: html_document
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(readr)
+library(janitor)
+
+```
+
+#load data
+```{r}
+icpms<-read.csv("~/Chem 313 lab/ICMPS lab/Soil_data/ICPMS_tidy.csv")
+icpms
+```
+
+```{r}
+sample_sites <- unique(filter(icpms, Site!="MB",  Site!= "")$Site)
+#exlcuding method blanks and others
+metals_analyzed <- unique(icpms$metal)
+
+#preview
+sample_sites
+metals_analyzed
+
+```
+
+```{r}
+#start loop and filter the Cal data
+icpms_cal<- NULL
+for (unique_metal in metals_analyzed) {
+  cal<- icpms%>%
+    filter(Type== "Cal1" |Type == "Cal2" | Type== "Cal3")%>%
+    filter(metal== unique_metal)%>%
+    select( Concentration,CPS, RSD)
+
+#use linear regression to pull relevant data into model
+
+w<- 1/(cal$CPS*cal$RSD)^2
+model<- lm(cal$CPS ~ cal$Concentration, weights=w)
+
+slope<- model$coefficients[2]
+intercept<- model$coefficients[1]
+slope_std <-summary(model)$coefficients[2,2]
+intercept_std<- summary(model)$coefficients[1,2]
+
+#plot the curve
+plot(cal$CPS~ cal$Concentration,
+     xlab= paste("Concentration of ", unique_metal, "(ppb)"),#units from the standard(ug/L)
+
+ylab= "Counts per second")+
+  abline(model,col="red")+
+  title(paste("Calibration for", unique_metal))
+     
+#store for loop
+equation<-  tibble(metal = unique_metal,  slope, slope_std, intercept, intercept_std)
+icpms_cal<- rbind(icpms_cal, equation)
+}
+icpms_cal
+
+remove(equation, cal,slope, slope_std, intercept, intercept_std, w, model, unique_metal)
+```
+
+#create function 
+```{r}
+#inputs: unique_site (as a character, ex. "A")
+#Outputs: concentration vector
+sample_analysis<- function(unique_site){
+  concentration_data<- NULL
+  for (unique_metal in metals_analyzed){
+    sample<- filter(icpms, metal== unique_metal, Site == unique_site)
+    data<-NULL
+    
+    for (ID in sample$Sample.Key) {
+      sample_data<- filter(sample, Sample.Key == ID)
+      cal<- filter(icpms_cal, metal ==   unique_metal)
+      
+      #sample anaylysis
+      m<- cal$slope
+      b<-cal$intercept
+      y<- sample_data$CPS
+      
+      b_e<-cal$intercept_std
+      m_e<-cal$slope_std
+      
+      x<- (y-b)/m
+      
+      RSD<- ((sample_data$RSD/100)* sample_data$CPS)
+      
+      CPS<-sample_data$CPS
+      
+      #error propigation
+      e_yb <- sqrt((RSD)^2 + (b_e)^2)
+      #error in y-b from the calibration
+      yb<- CPS-b
+        e_x<-x*sqrt((e_yb/yb)^2 +(m_e/m)^2)
+      #error in x from the calibration
+      data<- rbind(data, data_frame(Sample.Key = ID, x, e_x))
+      if (unique_site != "MB"){
+        concentraction_data<-data_frame(Sample.Key=sample_data$Sample.Key,
+                                        analyst= sample_data$Analyst,
+                                        metal= unique_metal,
+                                        Site = unique_site,
+                                        conc_dil = x,
+                                        conc_dil_error= e_x)%>%
+          rbind(concentration_data)
+      }
+      if (unique_site== "MB"){
+        x<- mean(data$x)
+        e_x<-sd(data$x)
+        concentration_data <- data_frame(metal= unique_metal,
+                                         Site= unique_site,
+                                         conc_dil =x,
+                                         conc_dil_error= e_x)%>%
+          rbind(concentration_data)
+      }
+    }
+ return(concentration_data) 
+    }
+}
+```
+
+#step  5 creatinga function to run a different funtion for each soil sample
+```{r}
+#inputs: a function
+#outputs:  a data frame with the function outputs from each site
+run_sites<- function(Function){
+  value<-NULL
+  for (Sites in sample_sites) {
+    site_value<- Function(Sites)
+    value<- rbind(site_value, value)
+  }
+  return(value)
+}
+```
+
+step 6: analyze the method blank
+```{r}
+MB<- sample_analysis("MB")
+uncor_sample<-run_sites(sample_analysis)
+
+MB
+uncor_sample
+```
+
+```{r}
+
+sample_data_mb<- NULL
+
+for (unique_metal in metals_analyzed) {
+  MB_metal<- filter(MB, metal== unique_metal)
+  sample_metal<-filter(uncor_sample, metal== unique_metal)
+  conc_dil_blanked<- sample_metal$conc_dil-MB_metal$conc_dil
+  
+  #error prop
+  conc_dil_blanked_error<- sqrt((sample_metal$conc_dil_error)^2+(MB_metal$conc_dil_error)^2)
+  
+  sample_data_mb<- sample_metal%>%
+    mutate(conc_dil_blanked, conc_dil_blanked_error)%>%
+    rbind(sample_data_mb)
+}
+
+
+sample_data_mb
+```
+step 8
+```{r}
+#error propigation
+vol_e<- 1
+mass<- .001
+dil_1010_e <- sqrt(1^2+10^2)
+dil_e<- sqrt((dil_1010_e/1010)^2+(1/10)^2)
+
+
+#correcting things and propigate more error
+sample_data<-merge(icpms,sample_data_mb)%>%
+  unique()%>%
+  mutate(conc_blanked= conc_dil_blanked*(Total.Volume/1000)/(Mass.of.Soil/1000)*101,
+         
+         conc_blanked_error= conc_blanked*
+           sqrt((conc_dil_blanked_error/conc_dil_blanked)^2+
+                  (dil_e/101)^2+
+                  (mass_e/Mass.of.Soil)^2+
+                  (vol_e/Total.Volume)^2),
+         conc_blanked= conc_dil*(Total.Volume/1000)/(Mass.of.Soil/1000)*101,
+         conc_blanked_error= conc_blanked*
+           sqrt((conc_dilerror/101)^2+
+                  (mass_e/Mass.of.Soil)^2+
+                  (vol_e/Total.Volume)^2))%>%
+  select(-Concentration,
+         -Type,
+         -Total.Volume,
+         -CPS,
+         -RSD,
+         -conc_dil_blanked,
+         -conc_dil_blanked_error, -conc_dil,
+         -conc_dil_error)
+
+
+```
+
+```{r, warning=FALSE}
+rm(list = ls()[!(ls()%in% c("ICPMC", "sample_data"))])
+
