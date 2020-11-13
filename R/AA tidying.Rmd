@@ -13,16 +13,17 @@ library(janitor)
 ```{r, warning=FALSE, message=FALSE}
 AA_data <- read_csv("~/Chem 313 lab/ICMPS lab/Soil_data/AA_Data.csv", skip = 4, na="N/A")
 
-AA_data<- AA_data%>%
-  rename(Sample.Key ="Sample Key")
+AA_data
+
+AA_tidy<- AA_data
 
 sample_key <- read.csv("~/Chem 313 lab/ICMPS lab/Soil_data/Sample_Key.csv", skip = 0)
 ```
 
 merge the two to start so we know what is a standard
 ```{r warning=FALSE}
-AA_merged<- merge(AA_data, sample_key)
+AA_merged<- merge(AA_tidy, sample_key)
 
-write.csv(AA_merged, file = "~/Chem 313 lab/ICMPS lab/Soil_data/AA_Data.csv")
-####I named it the same as theorigional so now the code doesnt quite work...
+write.csv(AA_merged, file = "~/Chem 313 lab/ICMPS lab/Soil_data/AA_tidy.csv")
+
 ```

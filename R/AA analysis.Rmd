@@ -1,8 +1,7 @@
 ---
-title: "ICPMS analysis"
+title: "AA analysis"
 output: html_document
 ---
-
 ```{r include=FALSE}
 library(tidyverse)
 library(readr)
@@ -12,14 +11,14 @@ library(janitor)
 
 #load data
 ```{r}
-icpms<-read.csv("~/Chem 313 lab/ICMPS lab/Soil_data/ICPMS_tidy.csv")
-icpms
+AA<-read.csv("~/Chem 313 lab/ICMPS lab/Soil_data/AA_tidy.csv")
+AA
 ```
 
 ```{r}
-sample_sites <- c("A", "B", "C", "D", "E", "F", "QC")
+sample_sites <- unique(filter(AA, Site!="MB",  Site!= "")$Site)
 #exlcuding method blanks and others
-metals_analyzed <- c("As75", "Cd111", "Cd114", "Cr52", "Cr53", "PB208")
+metals_analyzed <- unique(AA$metal)
 
 #preview
 sample_sites
@@ -29,9 +28,9 @@ metals_analyzed
 
 ```{r}
 #start loop and filter the Cal data
-icpms_cal<- NULL
+AA_cal<- NULL
 for (unique_metal in metals_analyzed) {
-  cal<- icpms%>%
+  cal<- AA%>%
     filter(Type== "Cal1" |Type == "Cal2" | Type== "Cal3")%>%
     filter(metal== unique_metal)%>%
     select( conc= Concentration, signal= CPS, RSD)
@@ -55,9 +54,9 @@ ylab= "Counts per second")+
      
 #store for loop
 equation<-  tibble(metal = unique_metal,  slope, slope_std, intercept, intercept_std)
-icpms_cal<- rbind(icpms_cal, equation)
+AA_cal<- rbind(AA_cal, equation)
 }
-icpms_cal
+AA_cal
 
 remove(equation, cal,slope, slope_std, intercept, intercept_std, w, model, unique_metal)
 ```
@@ -69,12 +68,12 @@ remove(equation, cal,slope, slope_std, intercept, intercept_std, w, model, uniqu
 sample_analysis<- function(unique_site){
   concentration_data<- NULL
   for (unique_metal in metals_analyzed){
-    sample<- filter(icpms, metal== unique_metal, Site == unique_site)
+    sample<- filter(AA, metal== unique_metal, Site == unique_site)
     data<-NULL
     
     for (ID in sample$Sample.Key){
       sample_data<- filter(sample, Sample.Key == ID)
-      cal<- filter(icpms_cal, metal ==   unique_metal)
+      cal<- filter(AA_cal, metal ==   unique_metal)
       
       #sample anaylysis
       m<- cal$slope
@@ -175,7 +174,7 @@ dil_e<- sqrt((dil_1010_e/1010)^2+(1/10)^2)
 
 
 #correcting things and propigate more error
-sample_data<-merge(icpms,sample_data_mb)%>%
+sample_data<-merge(AA,sample_data_mb)%>%
   unique()%>%
   mutate(conc_blanked= conc_dil_blanked*(Total.Volume/1000)/(Mass.of.Soil/1000)*101,
          
@@ -203,4 +202,4 @@ sample_data<-merge(icpms,sample_data_mb)%>%
 
 ```{r, warning=FALSE}
 rm(list = ls()[!(ls()%in% c("ICPMC", "sample_data"))])
-```
+
