@@ -12,7 +12,8 @@ library(janitor)
 #load data
 ```{r}
 AA<-read.csv("~/Chem 313 lab/ICMPS lab/Soil_data/tidy_AA_example.csv")%>%
-  mutate(metal="Cr")
+  mutate(metal="Cr")%>%
+  droplevels()
 AA
 ```
 
@@ -31,7 +32,7 @@ metals_analyzed
 AA_cal<- NULL
 for (unique_metal in metals_analyzed) {
   cal<- AA%>%
-    filter(type== "CalStd")%>%
+    filter(type== "CalStd"| type=="CalStd2"| type==  "CalStd4")%>%
     select( conc= concentration, signal= mean_abs, percent_rsd)
 
 #use linear regression to pull relevant data into model
@@ -48,7 +49,7 @@ intercept_std<- summary(model)$coefficients[1,2]
 plot(cal$signal~ cal$conc,
      xlab= paste("Concentration of ", unique_metal, "(ppm)"),#units from the standard(ug/L)
 ylab= "mean absorbance")+
-  abline(model,col="blue")+
+  abline(model,col="green")+
   title(paste("Calibration for", unique_metal))
      
 #store for loop
@@ -63,12 +64,12 @@ remove(equation, cal,slope, slope_std, intercept, intercept_std, w, model, uniqu
 sample_analysis <- function(unique_site){
   concentration_data <- NULL
   for (unique_metal in metals_analyzed){
-    sample <- filter(AA, metal == unique_metal, site == unique_site)
+    sample <- filter(AA, site == unique_site)
     data <- NULL 
     
-    for(ID in sample$sample_key){ 
-      sample_data <- filter(sample, sample_key == ID)
-      cal <- filter(AA_cal, metal == unique_metal) 
+    for(ID1 in sample$sample_key){ 
+      sample_data <- filter(sample, sample_key == ID1)
+      cal <- AA_cal
   
       #Sample Analysis 
       m <- cal$slope 
@@ -167,23 +168,21 @@ step 8
 #error propigation
 vol_e<- 1
 mass_e<- .001
-dil_1010_e <- sqrt(1^2+10^2)
-dil_e<- sqrt((dil_1010_e/1010)^2+(1/10)^2)
+
 
 
 #correcting things and propigate more error
 sample_data<-merge(AA,sample_data_mb)%>%
   unique()%>%
-  mutate(conc_blanked= conc_dil_blanked*(total_volume/1000)/(mass_of_soil/1000)*101,
+  mutate(conc_blanked= conc_dil_blanked*(total_volume/1000)/(mass_of_soil/1000),
          
          conc_blanked_error= conc_blanked*
            sqrt((conc_dil_blanked_error/conc_dil_blanked)^2+
-                  (dil_e/101)^2+
                   (mass_e/mass_of_soil)^2+
                   (vol_e/total_volume)^2),
-         conc_blanked= conc_dil*(total_volume/1000)/(mass_of_soil/1000)*101,
+         conc_blanked= conc_dil*(total_volume/1000)/(mass_of_soil/1000),
          conc_blanked_error= conc_blanked*
-           sqrt((conc_dil_error/101)^2+
+           sqrt((conc_dil_error)^2+
                   (mass_e/mass_of_soil)^2+
                   (vol_e/total_volume)^2))%>%
   select(-concentration,
@@ -194,4 +193,16 @@ sample_data<-merge(AA,sample_data_mb)%>%
          -conc_dil_blanked,
          -conc_dil_blanked_error, -conc_dil,
          -conc_dil_error)
+```
+
+```{r}
+stats_AA <- sample_data %>%
+  group_by(site) %>%
+  summarize(mean_conc = mean(conc_blanked),
+            sd_conc = sd(conc_blanked),
+            n = n()) %>%
+  mutate(se = qnorm(0.975)*sd_conc/sqrt(n),
+         lower_ci = mean_conc - se,
+         upper_ci = mean_conc + se)
+stats_AA
 ```
